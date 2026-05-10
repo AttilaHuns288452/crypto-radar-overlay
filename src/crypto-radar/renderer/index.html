@@ -53,17 +53,21 @@
     </section>
 
     <section class="guide-grid" aria-label="Number guide">
-      <div title="The price change since the previous radar scan. Green is up, red is down.">
+      <div title="Formula: ((current price - previous price) / previous price) x 100. Green is up, red is down.">
         <strong>Move</strong>
-        <span>change after scan 2</span>
+        <span>price change from last scan</span>
       </div>
-      <div title="Current volume pace compared with normal 24h pace. Higher means unusual activity.">
+      <div title="Formula: new volume since last scan / normal 24h volume pace for that scan interval.">
         <strong>Vol Spike</strong>
-        <span>activity after scan 2</span>
+        <span>new volume vs normal pace</span>
       </div>
       <div title="Total traded USDT volume over the last 24 hours. Larger means more liquidity.">
         <strong>24h Vol</strong>
         <span>liquidity traded today</span>
+      </div>
+      <div title="Rank score combines alert level, move, speed, volume burst, liquidity, and 24h change.">
+        <strong>Score</strong>
+        <span>why it ranks in top 10</span>
       </div>
     </section>
 

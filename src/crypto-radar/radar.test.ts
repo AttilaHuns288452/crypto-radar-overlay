@@ -94,6 +94,77 @@ describe("crypto radar market logic", () => {
     assert.ok(ranked[0].volumeBurst >= baseSettings.volumeBurstThreshold);
   });
 
+  it("explains the computations used to get move, volume burst, and rank score", () => {
+    const previous = new Map<string, RadarSnapshot>([
+      [
+        "FASTUSDT",
+        {
+          symbol: "FASTUSDT",
+          baseAsset: "FAST",
+          price: 100,
+          quoteVolume: 10_000_000,
+          change24hPct: 1,
+          timestamp: 1_700_000_000_000
+        }
+      ]
+    ]);
+    const ranked = rankRadarCandidates(
+      [
+        {
+          symbol: "FASTUSDT",
+          baseAsset: "FAST",
+          price: 101.2,
+          quoteVolume: 10_300_000,
+          change24hPct: 3,
+          timestamp: 1_700_000_060_000
+        }
+      ],
+      previous,
+      baseSettings
+    );
+
+    const candidate = ranked[0] as (typeof ranked)[number] & {
+      calculation?: {
+        scanIntervalMinutes: number;
+        priceDelta: number;
+        volumeDelta: number;
+        expectedVolumeForInterval: number;
+        scoreParts: Record<string, number>;
+        checks: Record<string, boolean>;
+        moveFormula: string;
+        velocityFormula: string;
+        volumeBurstFormula: string;
+        scoreFormula: string;
+      };
+    };
+
+    assert.ok(candidate.calculation);
+    assert.equal(candidate.calculation.scanIntervalMinutes, 1);
+    assert.equal(candidate.calculation.priceDelta, 1.2);
+    assert.equal(candidate.calculation.volumeDelta, 300_000);
+    assert.equal(candidate.calculation.expectedVolumeForInterval, 7152.78);
+    assert.deepEqual(candidate.calculation.checks, {
+      moveThreshold: true,
+      speedThreshold: true,
+      volumeThreshold: true
+    });
+    assert.deepEqual(candidate.calculation.scoreParts, {
+      level: 200,
+      move: 50.4,
+      speed: 21.6,
+      volumeBurst: 280,
+      liquidity: 35.06,
+      change24h: 2.4
+    });
+    assert.equal(candidate.calculation.moveFormula, "((101.2 - 100) / 100) x 100 = +1.20%");
+    assert.equal(candidate.calculation.velocityFormula, "+1.20% / 1.00 min = +1.20%/min");
+    assert.equal(candidate.calculation.volumeBurstFormula, "$300.0K new volume / $7.2K normal pace = 41.94x");
+    assert.equal(
+      candidate.calculation.scoreFormula,
+      "200.00 alert + 50.40 move + 21.60 speed + 280.00 volume + 35.06 liquidity + 2.40 24h = 589.46"
+    );
+  });
+
   it("marks candidates without a previous scan as baseline rows", () => {
     const ranked = rankRadarCandidates(
       [

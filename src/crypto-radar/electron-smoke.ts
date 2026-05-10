@@ -26,7 +26,12 @@ async function testMinimizeToBubble() {
     await page.waitForSelector(".radar-head", { timeout: 15_000 });
 
     const guideText = await page.locator(".guide-grid").innerText();
-    if (!guideText.includes("Move") || !guideText.includes("Vol Spike") || !guideText.includes("24h Vol")) {
+    if (
+      !guideText.includes("Move") ||
+      !guideText.includes("Vol Spike") ||
+      !guideText.includes("24h Vol") ||
+      !guideText.includes("Score")
+    ) {
       throw new Error(`Expected number guide to explain key metrics. Guide text: ${guideText}`);
     }
 

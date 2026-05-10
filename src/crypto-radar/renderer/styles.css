@@ -266,7 +266,7 @@ h2 {
 
 .guide-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .guide-grid > div {
@@ -356,10 +356,11 @@ h2 {
   grid-template-columns: 26px minmax(0, 1fr) 28px;
   grid-template-areas:
     "rank coin hide"
-    "rank metrics hide";
+    "rank metrics hide"
+    "calc calc calc";
   align-items: center;
   gap: 7px 8px;
-  min-height: 86px;
+  min-height: 116px;
   padding: 10px 8px;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -432,6 +433,18 @@ h2 {
   color: var(--muted);
 }
 
+.score-pill {
+  flex: none;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-style: normal;
+  font-size: 0.56rem;
+  line-height: 1.1;
+  color: #d8e6f7;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
 .level-badge.alert {
   color: #191202;
   background: var(--amber);
@@ -489,6 +502,76 @@ h2 {
 .metric.volume {
   color: var(--muted);
   font-weight: 680;
+}
+
+.calc-details {
+  grid-area: calc;
+  min-width: 0;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.calc-details summary {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.calc-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.calc-details summary span,
+.calc-lines span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 760;
+}
+
+.calc-details summary strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  font-weight: 650;
+}
+
+.calc-lines {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.calc-lines div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 7px;
+  padding: 5px 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  background: rgba(0, 0, 0, 0.13);
+}
+
+.calc-lines span {
+  font-size: 0.55rem;
+  line-height: 1.2;
+}
+
+.calc-lines strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.64rem;
+  line-height: 1.25;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .up {
@@ -587,5 +670,14 @@ h2 {
 
   .row-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calc-lines div {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://data-api.binance.vision https://api.binance.us https://api.binance.com https://api1.binance.com; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Radar</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="titlebar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <h1>Crypto Radar</h1>
+          <div class="status-line">
+            <span id="statusDot" class="status-dot live"></span>
+            <span id="statusText">Starting</span>
+          </div>
+        </div>
+      </div>
+      <div class="window-actions">
+        <button id="minimizeButton" class="icon-button" title="Minimize to bubble">_</button>
+        <button id="closeButton" class="icon-button danger" title="Close app">x</button>
+      </div>
+    </header>
+
+    <section class="control-strip">
+      <label class="switch-row">
+        <span>Monitor</span>
+        <input id="monitorToggle" type="checkbox" />
+      </label>
+      <label class="switch-row">
+        <span>Mute</span>
+        <input id="muteToggle" type="checkbox" />
+      </label>
+      <label class="switch-row">
+        <span>Pin</span>
+        <input id="pinToggle" type="checkbox" />
+      </label>
+    </section>
+
+    <section class="meta-grid">
+      <div>
+        <span>Source</span>
+        <strong id="sourceText">warming</strong>
+      </div>
+      <div>
+        <span>Updated</span>
+        <strong id="updatedText">--:--</strong>
+      </div>
+    </section>
+
+    <section class="guide-grid" aria-label="Number guide">
+      <div title="The price change since the previous radar scan. Green is up, red is down.">
+        <strong>Move</strong>
+        <span>change after scan 2</span>
+      </div>
+      <div title="Current volume pace compared with normal 24h pace. Higher means unusual activity.">
+        <strong>Vol Spike</strong>
+        <span>activity after scan 2</span>
+      </div>
+      <div title="Total traded USDT volume over the last 24 hours. Larger means more liquidity.">
+        <strong>24h Vol</strong>
+        <span>liquidity traded today</span>
+      </div>
+    </section>
+
+    <section class="settings-grid">
+      <label>
+        <span>Alert Move %</span>
+        <input id="moveThreshold" type="number" min="0.1" step="0.1" />
+      </label>
+      <label>
+        <span>Alert Spike x</span>
+        <input id="burstThreshold" type="number" min="1" step="0.1" />
+      </label>
+      <label>
+        <span>Min 24h Vol M</span>
+        <input id="minVolume" type="number" min="0.1" step="0.1" />
+      </label>
+      <label>
+        <span>Refresh s</span>
+        <input id="refreshSeconds" type="number" min="5" step="1" />
+      </label>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <h2>Top 10 to watch</h2>
+        <p>Ranked by fast price movement plus unusual volume.</p>
+      </div>
+      <button id="resetHiddenButton" class="text-button">Reset Hidden</button>
+    </section>
+
+    <div class="radar-head" aria-hidden="true">
+      <span>#</span>
+      <span>Coin</span>
+      <span>Price</span>
+      <span>Move</span>
+      <span>Vol Spike</span>
+      <span>24h Vol</span>
+    </div>
+    <section id="radarRows" class="radar-list" aria-live="polite"></section>
+
+    <section class="section-head alert-head">
+      <div>
+        <h2>Alerts</h2>
+        <p>Only fires when fast move and volume spike both pass your alert settings.</p>
+      </div>
+    </section>
+    <section id="alertFeed" class="alert-feed" aria-live="polite"></section>
+  </main>
+
+  <script type="module" src="../../../dist/crypto-radar/renderer.js"></script>
+</body>
+</html>

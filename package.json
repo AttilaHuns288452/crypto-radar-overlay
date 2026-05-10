@@ -1,0 +1,20 @@
+{
+  "name": "crypto-radar-overlay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Floating Electron crypto radar overlay for sudden price moves and volume bursts.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron dist/crypto-radar/main.js",
+    "start": "electron dist/crypto-radar/main.js",
+    "test": "npm run build && node --test dist/crypto-radar/radar.test.js dist/crypto-radar/window-state.test.js dist/crypto-radar/app-paths.test.js dist/crypto-radar/runtime-options.test.js",
+    "smoke": "npm run build && node dist/crypto-radar/electron-smoke.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "electron": "^41.5.0",
+    "playwright": "^1.52.0",
+    "typescript": "^5.8.3"
+  }
+}

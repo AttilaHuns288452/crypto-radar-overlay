@@ -219,54 +219,34 @@ function spikeDisplay(candidate: RadarCandidate) {
 
 function renderRows(candidates: RadarCandidate[]) {
   refs.radarRows.innerHTML = candidates
-    .map((candidate, index) => {
-      const calculationOpen = candidate.alertLevel !== "quiet" && candidate.hasPreviousScan ? " open" : "";
-      return `
-        <article class="${rowClass(candidate)}" title="${escapeHtml(candidate.calculation.scoreFormula)}">
-          <div class="rank" title="${escapeHtml(candidate.calculation.scoreFormula)}">${index + 1}</div>
+    .map(
+      (candidate, index) => `
+        <article class="${rowClass(candidate)}" title="${escapeHtml(candidate.reason)}">
+          <div class="rank" title="Ranked by fast movement, volume spike, and liquidity.">${index + 1}</div>
           <div class="coin-main">
             <div class="coin-title">
               <strong>${escapeHtml(candidate.baseAsset)}</strong>
               <span>${escapeHtml(candidate.symbol)}</span>
               <em class="level-badge ${candidate.alertLevel}">${alertLabel(candidate)}</em>
-              <em class="score-pill" title="${escapeHtml(candidate.calculation.scoreFormula)}">Score ${candidate.rankScore.toFixed(
-                2
-              )}</em>
             </div>
             <div class="reason">${escapeHtml(candidate.reason)}</div>
           </div>
           <div class="row-metrics">
             <div class="metric price" title="Current last traded price."><span>Price</span><strong>$${formatPrice(candidate.price)}</strong></div>
-            <div class="metric ${candidate.direction}" title="${escapeHtml(
-              candidate.calculation.moveFormula
-            )}"><span>Move</span><strong>${moveDisplay(
+            <div class="metric ${candidate.direction}" title="Price change since the previous scan."><span>Move</span><strong>${moveDisplay(
               candidate
             )}</strong></div>
-            <div class="metric burst" title="${escapeHtml(
-              candidate.calculation.volumeBurstFormula
-            )}"><span>Spike</span><strong>${spikeDisplay(
+            <div class="metric burst" title="Unusual volume pace compared with the coin's normal 24h pace."><span>Spike</span><strong>${spikeDisplay(
               candidate
             )}</strong></div>
             <div class="metric volume" title="Total USDT volume traded in the last 24 hours."><span>24h Vol</span><strong>${formatVolume(
               candidate.quoteVolume
             )}</strong></div>
           </div>
-          <details class="calc-details"${calculationOpen}>
-            <summary>
-              <span>Why / calculation</span>
-              <strong>${escapeHtml(candidate.calculation.alertCheckSummary)}</strong>
-            </summary>
-            <div class="calc-lines">
-              <div><span>Move</span><strong>${escapeHtml(candidate.calculation.moveFormula)}</strong></div>
-              <div><span>Speed</span><strong>${escapeHtml(candidate.calculation.velocityFormula)}</strong></div>
-              <div><span>Vol spike</span><strong>${escapeHtml(candidate.calculation.volumeBurstFormula)}</strong></div>
-              <div><span>Rank score</span><strong>${escapeHtml(candidate.calculation.scoreFormula)}</strong></div>
-            </div>
-          </details>
           <button class="icon-button hide-button" data-hide="${escapeHtml(candidate.symbol)}" title="Hide this coin from the radar">x</button>
         </article>
-      `;
-    })
+      `
+    )
     .join("");
 
   if (candidates.length === 0) {

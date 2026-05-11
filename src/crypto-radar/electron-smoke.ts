@@ -30,9 +30,14 @@ async function testMinimizeToBubble() {
       !guideText.includes("Move") ||
       !guideText.includes("Vol Spike") ||
       !guideText.includes("24h Vol") ||
-      !guideText.includes("Score")
+      guideText.includes("Score")
     ) {
-      throw new Error(`Expected number guide to explain key metrics. Guide text: ${guideText}`);
+      throw new Error(`Expected number guide to stay simple without score/calculation UI. Guide text: ${guideText}`);
+    }
+
+    const bodyText = await page.locator("body").innerText();
+    if (bodyText.includes("Why / calculation") || bodyText.includes("Rank score")) {
+      throw new Error(`Expected overlay to hide detailed calculations. Body text: ${bodyText}`);
     }
 
     await page.locator("#minimizeButton").click();

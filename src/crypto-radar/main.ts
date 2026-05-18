@@ -1,8 +1,16 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAppPaths } from "./app-paths.js";
-import { calculateBubbleBounds } from "./window-state.js";
+import {
+  calculateBubbleBounds,
+  calculateDraggedBubbleBounds,
+  calculateVirtualWorkArea,
+  clampWindowBounds,
+  normalizeBubbleBounds,
+  type WindowBounds
+} from "./window-state.js";
 import { shouldUseSingleInstanceLock } from "./runtime-options.js";
 
 let mainWindow: BrowserWindow | null = null;
@@ -10,11 +18,25 @@ let bubbleWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let pinned = true;
+let cryptoBubbleBounds: WindowBounds | null = null;
+let persistBubbleBoundsTimer: NodeJS.Timeout | undefined;
+
+const CRYPTO_BUBBLE_SIZE = 32;
+const SCREEN_EDGE_MARGIN = 12;
+const BUBBLE_DRAG_ROOM = 220;
+const isSmoke = process.argv.includes("--crypto-radar-smoke");
+
+type BubbleDragDelta = {
+  deltaX: number;
+  deltaY: number;
+};
 
 const appPaths = createAppPaths(path.dirname(fileURLToPath(import.meta.url)));
 const cryptoRadarUserDataPath = path.join(app.getPath("appData"), "CryptoRadarOverlay");
 app.setPath("userData", cryptoRadarUserDataPath);
+const cryptoBubbleStatePath = path.join(cryptoRadarUserDataPath, "bubble-state.json");
 const hasSingleInstanceLock = shouldUseSingleInstanceLock(process.argv) ? app.requestSingleInstanceLock() : true;
+const shouldStartInBubble = process.argv.includes("--start-bubble") || (!isSmoke && app.getLoginItemSettings().wasOpenedAtLogin);
 
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -51,7 +73,7 @@ function enableAutoStart() {
   app.setLoginItemSettings({
     openAtLogin: true,
     path: process.execPath,
-    args: app.isPackaged ? [] : [appPaths.mainScript]
+    args: app.isPackaged ? ["--start-bubble"] : [appPaths.mainScript, "--start-bubble"]
   });
 }
 
@@ -98,9 +120,22 @@ function createTray() {
 
 function setPinned(enabled: boolean) {
   pinned = enabled;
-  mainWindow?.setAlwaysOnTop(pinned, "floating");
-  bubbleWindow?.setAlwaysOnTop(true, "floating");
+  if (mainWindow) {
+    setWindowAlwaysOnTop(mainWindow, pinned);
+  }
+  if (bubbleWindow) {
+    keepBubbleAboveWindows(bubbleWindow);
+  }
   updateTrayMenu();
+}
+
+function setWindowAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
+  window.setAlwaysOnTop(enabled, process.platform === "win32" ? "normal" : "floating");
+}
+
+function keepBubbleAboveWindows(bubble: BrowserWindow) {
+  setWindowAlwaysOnTop(bubble, true);
+  bubble.moveTop();
 }
 
 function createBubbleWindow() {
@@ -109,10 +144,16 @@ function createBubbleWindow() {
   }
 
   bubbleWindow = new BrowserWindow({
-    width: 62,
-    height: 62,
+    width: CRYPTO_BUBBLE_SIZE,
+    height: CRYPTO_BUBBLE_SIZE,
+    useContentSize: true,
+    minWidth: CRYPTO_BUBBLE_SIZE,
+    minHeight: CRYPTO_BUBBLE_SIZE,
+    maxWidth: CRYPTO_BUBBLE_SIZE,
+    maxHeight: CRYPTO_BUBBLE_SIZE,
     frame: false,
     transparent: true,
+    hasShadow: false,
     resizable: false,
     movable: true,
     show: false,
@@ -126,7 +167,9 @@ function createBubbleWindow() {
     }
   });
 
-  bubbleWindow.setAlwaysOnTop(true, "floating");
+  keepBubbleAboveWindows(bubbleWindow);
+  bubbleWindow.setMinimumSize(CRYPTO_BUBBLE_SIZE, CRYPTO_BUBBLE_SIZE);
+  bubbleWindow.setMaximumSize(CRYPTO_BUBBLE_SIZE, CRYPTO_BUBBLE_SIZE);
   bubbleWindow.loadFile(getBubblePath());
   bubbleWindow.on("closed", () => {
     bubbleWindow = null;
@@ -135,16 +178,88 @@ function createBubbleWindow() {
   return bubbleWindow;
 }
 
-function hideToBubble() {
-  if (!mainWindow) {
+function getDefaultCryptoBubbleBounds() {
+  const display = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()) : screen.getPrimaryDisplay();
+  return calculateBubbleBounds(display.workArea, CRYPTO_BUBBLE_SIZE, SCREEN_EDGE_MARGIN, BUBBLE_DRAG_ROOM);
+}
+
+function getVirtualWorkArea() {
+  return calculateVirtualWorkArea(screen.getAllDisplays().map((display) => display.workArea));
+}
+
+function clampCryptoBubbleBounds(bounds: WindowBounds) {
+  return clampWindowBounds(getVirtualWorkArea(), bounds);
+}
+
+function readStoredCryptoBubbleBounds() {
+  if (isSmoke) {
+    return null;
+  }
+
+  try {
+    const stored = JSON.parse(readFileSync(cryptoBubbleStatePath, "utf8").replace(/^\uFEFF/, "")) as Partial<WindowBounds>;
+    if (!Number.isFinite(stored.x) || !Number.isFinite(stored.y)) {
+      return null;
+    }
+
+    return normalizeBubbleBounds(
+      getVirtualWorkArea(),
+      {
+        x: Number(stored.x),
+        y: Number(stored.y),
+        width: CRYPTO_BUBBLE_SIZE,
+        height: CRYPTO_BUBBLE_SIZE
+      },
+      CRYPTO_BUBBLE_SIZE
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn("Crypto Radar bubble state read skipped:", error);
+    }
+    return null;
+  }
+}
+
+function persistCryptoBubbleBounds(bounds = cryptoBubbleBounds) {
+  if (isSmoke || !bounds) {
     return;
   }
 
-  mainWindow.hide();
+  try {
+    mkdirSync(path.dirname(cryptoBubbleStatePath), { recursive: true });
+    writeFileSync(cryptoBubbleStatePath, JSON.stringify({ x: bounds.x, y: bounds.y }, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Crypto Radar bubble state save skipped:", error);
+  }
+}
+
+function schedulePersistCryptoBubbleBounds() {
+  if (persistBubbleBoundsTimer) {
+    clearTimeout(persistBubbleBoundsTimer);
+  }
+  persistBubbleBoundsTimer = setTimeout(() => {
+    persistBubbleBoundsTimer = undefined;
+    persistCryptoBubbleBounds();
+  }, 150);
+}
+
+function getCryptoBubbleBounds() {
+  return cryptoBubbleBounds
+    ? clampCryptoBubbleBounds(cryptoBubbleBounds)
+    : readStoredCryptoBubbleBounds() ?? getDefaultCryptoBubbleBounds();
+}
+
+function showBubbleWindow() {
+  mainWindow?.hide();
   const bubble = createBubbleWindow();
-  const display = screen.getDisplayMatching(mainWindow.getBounds());
-  bubble.setBounds(calculateBubbleBounds(display.workArea, 62, 18));
-  bubble.showInactive();
+  cryptoBubbleBounds = getCryptoBubbleBounds();
+  bubble.setBounds(cryptoBubbleBounds);
+  bubble.show();
+  keepBubbleAboveWindows(bubble);
+}
+
+function hideToBubble() {
+  showBubbleWindow();
 }
 
 function showMainWindow() {
@@ -162,8 +277,24 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
+function moveCryptoBubble(delta: BubbleDragDelta) {
+  if (!bubbleWindow || !Number.isFinite(delta.deltaX) || !Number.isFinite(delta.deltaY)) {
+    return;
+  }
+
+  const currentBounds = bubbleWindow.getBounds();
+  cryptoBubbleBounds = calculateDraggedBubbleBounds(getVirtualWorkArea(), currentBounds, delta, CRYPTO_BUBBLE_SIZE);
+  bubbleWindow.setBounds(cryptoBubbleBounds);
+  schedulePersistCryptoBubbleBounds();
+}
+
 function quitApp() {
   isQuitting = true;
+  if (persistBubbleBoundsTimer) {
+    clearTimeout(persistBubbleBoundsTimer);
+    persistBubbleBoundsTimer = undefined;
+  }
+  persistCryptoBubbleBounds();
   bubbleWindow?.destroy();
   mainWindow?.destroy();
   app.quit();
@@ -188,9 +319,13 @@ function createWindow() {
     }
   });
 
-  mainWindow.setAlwaysOnTop(pinned, "floating");
+  setWindowAlwaysOnTop(mainWindow, pinned);
   mainWindow.loadFile(getRendererPath());
   mainWindow.once("ready-to-show", () => {
+    if (shouldStartInBubble) {
+      showBubbleWindow();
+      return;
+    }
     mainWindow?.show();
   });
 
@@ -259,6 +394,14 @@ ipcMain.on("crypto-radar:pin", (_event, enabled: boolean) => {
 
 ipcMain.on("crypto-radar:restore", () => {
   showMainWindow();
+});
+
+ipcMain.on("crypto-radar:bubble-drag", (_event, delta: BubbleDragDelta) => {
+  moveCryptoBubble(delta);
+});
+
+ipcMain.on("crypto-radar:bubble-drag-end", () => {
+  persistCryptoBubbleBounds();
 });
 
 ipcMain.on("crypto-radar:alert", (_event, alert: { symbol: string; message: string }) => {

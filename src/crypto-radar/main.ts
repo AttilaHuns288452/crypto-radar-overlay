@@ -355,7 +355,9 @@ app.whenReady().then(() => {
     return;
   }
 
-  enableAutoStart();
+  if (!isSmoke) {
+    enableAutoStart();
+  }
   createTray();
   createWindow();
 
